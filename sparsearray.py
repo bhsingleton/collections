@@ -1,3 +1,6 @@
+import types
+
+from six import integer_types
 from six.moves import collections_abc
 
 import logging
@@ -8,12 +11,13 @@ log.setLevel(logging.INFO)
 
 class SparseArray(collections_abc.MutableSequence):
     """
-    Overload of MutableMapping used as a sparse array container.
+    Overload of MutableSequence used as a sparse array container.
+    This class uses an index tracker in order to maintain a sorted list of indices.
     """
 
-    __slots__ = ('__items__',)
+    __slots__ = ('__indices__', '__values__')
 
-    def __init__(self):
+    def __init__(self, *args):
         """
         Private method called after a new instance has been created.
         """
@@ -24,7 +28,16 @@ class SparseArray(collections_abc.MutableSequence):
 
         # Declare class variables
         #
-        self.__items__ = {}
+        self.__indices__ = {}
+        self.__values__ = {}
+
+        # Check for any arguments
+        #
+        numArgs = len(args)
+
+        if numArgs > 0:
+
+            self.extend(args[0])
 
     def __str__(self):
         """
@@ -43,15 +56,23 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: object
         """
 
+        # Check value type
+        #
+        if not isinstance(index, integer_types):
+
+            raise TypeError('__getitem__() expects an int (%s given)!' % type(index).__name__)
+
         # Check index sign
         #
-        if 0 <= index < self.__len__():
+        hasIndex = self.__indices__.get(index, False)
 
-            return self.__items__.get(index, None)
+        if hasIndex:
+
+            return self.__values__[index]
 
         else:
 
-            return self.toList()[index]
+            raise IndexError('__getitem__() list index out of range!')
 
     def __setitem__(self, index, item):
         """
@@ -62,7 +83,24 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        self.__items__[index] = item
+        # Check value type
+        #
+        if not isinstance(index, integer_types):
+
+            raise TypeError('__setitem__() expects an int (%s given)!' % type(index).__name__)
+
+        # Check if tracker requires resizer
+        #
+        numIndices = len(self.__indices__)
+
+        if index >= numIndices:
+
+            self.__indices__.update(dict.fromkeys(list(range(numIndices, index + 1, 1)), False))
+
+        # Assign indexed item
+        #
+        self.__indices__[index] = True
+        self.__values__[index] = item
 
     def __delitem__(self, index):
         """
@@ -72,7 +110,8 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        del self.__items__[index]
+        self.__indices__[index] = False
+        del self.__values__[index]
 
     def __contains__(self, item):
         """
@@ -82,16 +121,18 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: bool
         """
 
-        return item in self.__items__.values()
+        return item in self.__values__.values()
 
     def __iter__(self):
         """
-        Private method that returns a generator for this object.
+        Private method that returns a generator for this array.
 
         :rtype: iter
         """
 
-        return iter(self.__items__.values())
+        for index in self.indices():
+
+            yield self.__values__[index]
 
     def __len__(self):
         """
@@ -100,7 +141,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: int
         """
 
-        return len(self.__items__)
+        return len(self.__values__)
 
     def insert(self, index, item):
         """
@@ -121,7 +162,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        self.insert(self.__len__(), item)
+        self.__setitem__(self.nextIndex(), item)
 
     def appendIfUnique(self, item):
         """
@@ -131,9 +172,9 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        if item not in self:
+        if not self.__contains__(item):
 
-            self.insert(self.__len__(), item)
+            self.append(item)
 
     def extend(self, items):
         """
@@ -143,9 +184,44 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        for item in items:
+        # Check items type
+        #
+        if isinstance(items, collections_abc.MutableSequence):
 
-            self.append(item)
+            # Append items
+            #
+            for item in items:
+
+                self.append(item)
+
+        elif isinstance(items, types.GeneratorType):
+
+            # Iterate through generator
+            #
+            for item in items:
+
+                # Check item type
+                #
+                if not isinstance(item, tuple):
+
+                    self.append(item)
+
+                # Check number of arguments
+                # If it's a key-value pair then use set item instead!
+                #
+                itemCount = len(item)
+
+                if itemCount == 2:
+
+                    self.__setitem__(item[0], item[1])
+
+                else:
+
+                    self.append(item)
+
+        else:
+
+            raise TypeError('extend() expects a sequence (%s given)!' % type(items).__name__)
 
     def remove(self, item):
         """
@@ -155,7 +231,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        del self.__items__[self.index(item)]
+        self.__delitem__(self.index(item))
 
     def clear(self):
         """
@@ -164,7 +240,8 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        self.__items__.clear()
+        self.__indices__.clear()
+        self.__values__.clear()
 
     def index(self, item):
         """
@@ -174,18 +251,55 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: int
         """
 
-        return self.toList(item).index(item)
+        # Iterate through items
+        #
+        for (index, value) in self.items():
 
-    def get(self, index, default=None):
+            if value == item:
+
+                return index
+
+            else:
+
+                continue
+
+        # Raise value error
+        #
+        raise ValueError('index() item is not in array!' % item)
+
+    def indices(self):
         """
-        Returns an indexed item with an optional default in case there's no item.
+        Returns a sorted list of indices currently in use.
 
-        :type index: int
-        :type default: object
-        :rtype: object
+        :rtype: list[int]
         """
 
-        return self.__items__.get(index, default)
+        # Iterate through indices
+        #
+        for (index, exists) in self.__indices__.items():
+
+            if exists:
+
+                yield index
+
+            else:
+
+                continue
+
+    def firstIndex(self):
+        """
+        Returns the first known index currently in use.
+
+        :rtype: int
+        """
+
+        if self.__len__() > 0:
+
+            return list(self.indices())[0]
+
+        else:
+
+            return None
 
     def lastIndex(self):
         """
@@ -196,29 +310,44 @@ class SparseArray(collections_abc.MutableSequence):
 
         if self.__len__() > 0:
 
-            return self.indices()[-1]
+            return list(self.indices())[-1]
 
         else:
 
             return None
 
-    def indices(self):
+    def get(self, index, default=None):
         """
-        Returns a sorted list of indices currently in use.
+        Returns an indexed item from this array.
+        An optional default can be supplied in case there's no item.
 
-        :rtype: list[int]
-        """
-
-        return list(self.iterIndices())
-
-    def iterIndices(self):
-        """
-        Returns a generator that iterates over sorted list of indices.
-
-        :rtype: iter
+        :type index: int
+        :type default: Any
+        :rtype: Any
         """
 
-        return sorted(self.__items__.keys())
+        return self.__values__.get(index, default)
+
+    def getLocal(self, index, default=None):
+        """
+        Returns a local indexed item from this array.
+        An optional default can be supplied in case there's no item.
+
+        :type index: int
+        :type default: Any
+        :rtype: Any
+        """
+
+        indices = list(self.indices())
+        numIndices = len(indices)
+
+        if 0 <= index < numIndices:
+
+            return self.get(indices[index], default=default)
+
+        else:
+
+            return default
 
     def values(self):
         """
@@ -227,7 +356,9 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: list
         """
 
-        return self.__items__.values()
+        for index in self.indices():
+
+            yield self.__values__[index]
 
     def items(self):
         """
@@ -236,7 +367,9 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: list
         """
 
-        return self.__items__.items()
+        for index in self.indices():
+
+            yield index, self.__values__[index]
 
     @property
     def isSequential(self):
@@ -247,6 +380,21 @@ class SparseArray(collections_abc.MutableSequence):
         """
 
         return self.indices() == list(range(self.__len__()))
+
+    def nextIndex(self):
+        """
+        Returns the next index at the end of this array.
+
+        :rtype: int
+        """
+
+        if self.__len__() > 0:
+
+            return self.lastIndex() + 1
+
+        else:
+
+            return 0
 
     def nextAvailableIndex(self):
         """
@@ -263,32 +411,19 @@ class SparseArray(collections_abc.MutableSequence):
 
                 return physicalIndex
 
-        # Return last index
+        # Return next index
         #
-        if self.__len__() > 0:
+        return self.nextIndex()
 
-            return self.lastIndex()
-
-        else:
-
-            return 0
-
-    def toList(self, default=None):
+    def toList(self):
         """
         Converts this sparse array into a list.
-        All empty entries will be filled with the default value.
+        All sparse indices will be lost!
 
-        :type default: object
         :rtype: list
         """
 
-        if self.__len__() > 0:
-
-            return [self.__items__.get(x, default) for x in range(self.lastIndex() + 1)]
-
-        else:
-
-            return []
+        return list(self.values())
 
     def toDict(self):
         """
@@ -297,4 +432,4 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: dict
         """
 
-        return dict(self.__items__)
+        return dict(self.items())
