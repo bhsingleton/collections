@@ -48,31 +48,25 @@ class SparseArray(collections_abc.MutableSequence):
 
         return str(self.toList())
 
-    def __getitem__(self, index):
+    def __call__(self, index):
         """
-        Private method that returns either an indexed child.
+        Private method that returns a physically indexed item.
 
         :type index: int
-        :rtype: object
+        :rtype: Any
         """
 
-        # Check value type
-        #
-        if not isinstance(index, integer_types):
+        return self.getItemByPhysicalIndex(index)
 
-            raise TypeError('__getitem__() expects an int (%s given)!' % type(index).__name__)
+    def __getitem__(self, index):
+        """
+        Private method that returns a logically indexed item.
 
-        # Check index sign
-        #
-        hasIndex = self.__indices__.get(index, False)
+        :type index: int
+        :rtype: Any
+        """
 
-        if hasIndex:
-
-            return self.__values__[index]
-
-        else:
-
-            raise IndexError('__getitem__() list index out of range!')
+        return self.getItemByLogicalIndex(index)
 
     def __setitem__(self, index, item):
         """
@@ -176,6 +170,41 @@ class SparseArray(collections_abc.MutableSequence):
 
             self.append(item)
 
+    @staticmethod
+    def isKeyValuePair(obj):
+        """
+        Evaluates if the supplied object is a key-value pair.
+
+        :type obj: Any
+        :rtype: bool
+        """
+
+        # Check object type
+        #
+        if not isinstance(obj, tuple):
+
+            return False
+
+        # Check number of items
+        #
+        numArgs = len(obj)
+
+        if numArgs != 2:
+
+            return False
+
+        # Check item types
+        #
+        key, value = obj
+
+        if isinstance(key, integer_types):
+
+            return True
+
+        else:
+
+            return False
+
     def extend(self, items):
         """
         Appends the supplied items onto this array.
@@ -200,18 +229,9 @@ class SparseArray(collections_abc.MutableSequence):
             #
             for item in items:
 
-                # Check item type
+                # Check if this is a key-value pair
                 #
-                if not isinstance(item, tuple):
-
-                    self.append(item)
-
-                # Check number of arguments
-                # If it's a key-value pair then use set item instead!
-                #
-                itemCount = len(item)
-
-                if itemCount == 2:
+                if self.isKeyValuePair(item):
 
                     self.__setitem__(item[0], item[1])
 
@@ -222,6 +242,25 @@ class SparseArray(collections_abc.MutableSequence):
         else:
 
             raise TypeError('extend() expects a sequence (%s given)!' % type(items).__name__)
+
+    def pop(self, index):
+        """
+        Removes an item from this array and returns it.
+
+        :type index: int
+        :rtype: Any
+        """
+
+        hasIndex = self.__indices__.get(index, False)
+
+        if hasIndex:
+
+            self.__indices__[index] = False
+            return self.__indices__.pop(index)
+
+        else:
+
+            raise IndexError('pop() index out of range!')
 
     def remove(self, item):
         """
@@ -251,21 +290,18 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: int
         """
 
-        # Iterate through items
-        #
-        for (index, value) in self.items():
+        try:
 
-            if value == item:
+            keys = list(self.__values__.keys())
+            values = list(self.__values__.values())
 
-                return index
+            physicalIndex = values.index(item)
+            return keys[physicalIndex]
 
-            else:
+        except ValueError as exception:
 
-                continue
-
-        # Raise value error
-        #
-        raise ValueError('index() item is not in array!' % item)
+            log.debug(exception)
+            raise ValueError('index() item is not in array!' % item)
 
     def indices(self):
         """
@@ -316,39 +352,6 @@ class SparseArray(collections_abc.MutableSequence):
 
             return None
 
-    def get(self, index, default=None):
-        """
-        Returns an indexed item from this array.
-        An optional default can be supplied in case there's no item.
-
-        :type index: int
-        :type default: Any
-        :rtype: Any
-        """
-
-        return self.__values__.get(index, default)
-
-    def getLocal(self, index, default=None):
-        """
-        Returns a local indexed item from this array.
-        An optional default can be supplied in case there's no item.
-
-        :type index: int
-        :type default: Any
-        :rtype: Any
-        """
-
-        indices = list(self.indices())
-        numIndices = len(indices)
-
-        if 0 <= index < numIndices:
-
-            return self.get(indices[index], default=default)
-
-        else:
-
-            return default
-
     def values(self):
         """
         Returns a list of values currently in use.
@@ -370,6 +373,97 @@ class SparseArray(collections_abc.MutableSequence):
         for index in self.indices():
 
             yield index, self.__values__[index]
+
+    def getItemByLogicalIndex(self, index):
+        """
+        Returns a logically indexed item from this array.
+
+        :type index: int
+        :rtype: Any
+        """
+
+        # Check value type
+        #
+        if not isinstance(index, integer_types):
+
+            raise TypeError('getItemByLogicalIndex() expects an int (%s given)!' % type(index).__name__)
+
+        # Check if index exists
+        #
+        hasIndex = self.__indices__.get(index, False)
+
+        if hasIndex:
+
+            return self.__values__[index]
+
+        else:
+
+            raise IndexError('getItemByLogicalIndex() list index out of range!')
+
+    def tryGetItemByLogicalIndex(self, index, default=None):
+        """
+        Returns a logically indexed item from this array.
+        An optional default can be supplied in case this fails.
+
+        :type index: int
+        :type default: Any
+        :rtype: Any
+        """
+
+        try:
+
+            return self.getItemByLogicalIndex(index)
+
+        except (IndexError, TypeError) as exception:
+
+            log.debug(exception)
+            return default
+
+    def getItemByPhysicalIndex(self, index):
+        """
+        Returns a physically indexed item from this array.
+
+        :type index: int
+        :rtype: Any
+        """
+
+        # Check value type
+        #
+        if not isinstance(index, integer_types):
+
+            raise TypeError('getItemByPhysicalIndex() expects an int (%s given)!' % type(index).__name__)
+
+        # Check if index is in range
+        #
+        indices = list(self.indices())
+        numIndices = len(indices)
+
+        if 0 <= index < numIndices:
+
+            return self.getItemByLogicalIndex(indices[index])
+
+        else:
+
+            raise IndexError('getItemByPhysicalIndex() index out of range!')
+
+    def tryGetItemByPhysicalIndex(self, index, default=None):
+        """
+        Returns a physically indexed item from this array.
+        An optional default can be supplied in case this fails.
+
+        :type index: int
+        :type default: Any
+        :rtype: Any
+        """
+
+        try:
+
+            return self.getItemByPhysicalIndex(index)
+
+        except (IndexError, TypeError) as exception:
+
+            log.debug(exception)
+            return default
 
     @property
     def isSequential(self):
@@ -415,15 +509,25 @@ class SparseArray(collections_abc.MutableSequence):
         #
         return self.nextIndex()
 
-    def toList(self):
+    def toList(self, **kwargs):
         """
         Converts this sparse array into a list.
-        All sparse indices will be lost!
+        An optional fill value can be supplied to populate missing indices.
 
-        :rtype: list
+        :keyword fill: Any
+        :rtype: list[Any]
         """
 
-        return list(self.values())
+        # Check if list should be filled
+        #
+        if 'fill' in kwargs:
+
+            fill = kwargs['fill']
+            return [self.__values__[index] if exists else fill for (index, exists) in self.__indices__.items()]
+
+        else:
+
+            return list(self.values())
 
     def toDict(self):
         """
