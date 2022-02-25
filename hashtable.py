@@ -18,6 +18,8 @@ class HashTable(collections_abc.MutableMapping):
     def __init__(self, *args, **kwargs):
         """
         Private method called after a new instance has been created.
+
+        :rtype: None
         """
 
         # Call parent method

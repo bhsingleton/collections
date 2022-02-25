@@ -17,6 +17,9 @@ class NotifyList(collections_abc.MutableSequence):
     def __init__(self, *args, **kwargs):
         """
         Private method called after a new instance has been created.
+
+        :keyword cls: type
+        :rtype: None
         """
 
         # Call parent method
@@ -39,7 +42,6 @@ class NotifyList(collections_abc.MutableSequence):
     def __getitem__(self, index):
         """
         Private method that returns an indexed item.
-
 
         :type index: int
         :rtype: Any

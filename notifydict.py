@@ -19,6 +19,9 @@ class NotifyDict(collections_abc.MutableMapping):
     def __init__(self, *args, **kwargs):
         """
         Private method called after a new instance has been created.
+
+        :keyword cls: type
+        :rtype: None
         """
 
         # Call parent method
@@ -41,7 +44,6 @@ class NotifyDict(collections_abc.MutableMapping):
     def __getitem__(self, key):
         """
         Private method that returns a key-value pair.
-
 
         :type key: Union[int, str]
         :rtype: Any

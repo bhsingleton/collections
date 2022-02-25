@@ -19,6 +19,8 @@ class WeakRefList(collections_abc.MutableSequence):
     def __init__(self, *args, **kwargs):
         """
         Private method called after a new instance has been created.
+
+        :rtype: None
         """
 
         # Call parent method

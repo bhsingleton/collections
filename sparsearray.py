@@ -20,6 +20,8 @@ class SparseArray(collections_abc.MutableSequence):
     def __init__(self, *args):
         """
         Private method called after a new instance has been created.
+
+        :rtype: None
         """
 
         # Call parent method
