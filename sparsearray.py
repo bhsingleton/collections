@@ -516,7 +516,7 @@ class SparseArray(collections_abc.MutableSequence):
         Converts this sparse array into a list.
         An optional fill value can be supplied to populate missing indices.
 
-        :keyword fill: Any
+        :key fill: Any
         :rtype: list[Any]
         """
 

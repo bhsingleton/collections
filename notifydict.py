@@ -20,7 +20,7 @@ class NotifyDict(collections_abc.MutableMapping):
         """
         Private method called after a new instance has been created.
 
-        :keyword cls: type
+        :key cls: type
         :rtype: None
         """
 
