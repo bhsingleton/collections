@@ -12,16 +12,14 @@ log.setLevel(logging.INFO)
 class SparseArray(collections_abc.MutableSequence):
     """
     Overload of MutableSequence used as a sparse array container.
-    This class uses an index tracker in order to maintain a sorted list of indices.
+    Uses an internal sorted dictionary to track items.
     """
 
-    __slots__ = ('__indices__', '__values__')
+    __slots__ = ('__items__',)
 
     def __init__(self, *args):
         """
         Private method called after a new instance has been created.
-
-        :rtype: None
         """
 
         # Call parent method
@@ -30,8 +28,7 @@ class SparseArray(collections_abc.MutableSequence):
 
         # Declare class variables
         #
-        self.__indices__ = {}
-        self.__values__ = {}
+        self.__items__ = {}
 
         # Check for any arguments
         #
@@ -85,18 +82,18 @@ class SparseArray(collections_abc.MutableSequence):
 
             raise TypeError('__setitem__() expects an int (%s given)!' % type(index).__name__)
 
-        # Check if tracker requires resizer
+        # Assign item to array
         #
-        numIndices = len(self.__indices__)
+        self.__items__[index] = item
 
-        if index >= numIndices:
-
-            self.__indices__.update(dict.fromkeys(list(range(numIndices, index + 1, 1)), False))
-
-        # Assign indexed item
+        # Check if array requires re-sorting
         #
-        self.__indices__[index] = True
-        self.__values__[index] = item
+        indices = list(self.__items__.keys())
+        lastIndex = indices[-1]
+
+        if 0 <= index < lastIndex:
+
+            self.__items__ = dict(sorted(self.__items__.items()))
 
     def __delitem__(self, index):
         """
@@ -106,8 +103,13 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        self.__indices__[index] = False
-        del self.__values__[index]
+        if self.hasIndex(index):
+
+            del self.__items__[index]
+
+        else:
+
+            raise IndexError('__delitem__() array index out of range!')
 
     def __contains__(self, item):
         """
@@ -117,7 +119,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: bool
         """
 
-        return item in self.__values__.values()
+        return item in self.__items__.values()
 
     def __iter__(self):
         """
@@ -126,9 +128,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: iter
         """
 
-        for index in self.indices():
-
-            yield self.__values__[index]
+        return self.__items__.values()
 
     def __len__(self):
         """
@@ -137,7 +137,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: int
         """
 
-        return len(self.__values__)
+        return len(self.__items__)
 
     def insert(self, index, item):
         """
@@ -245,24 +245,16 @@ class SparseArray(collections_abc.MutableSequence):
 
             raise TypeError('extend() expects a sequence (%s given)!' % type(items).__name__)
 
-    def pop(self, index):
+    def pop(self, index, default=None):
         """
         Removes an item from this array and returns it.
 
         :type index: int
+        :type default: Any
         :rtype: Any
         """
 
-        hasIndex = self.__indices__.get(index, False)
-
-        if hasIndex:
-
-            self.__indices__[index] = False
-            return self.__indices__.pop(index)
-
-        else:
-
-            raise IndexError('pop() index out of range!')
+        return self.__items__.pop(index, default)
 
     def remove(self, item):
         """
@@ -281,8 +273,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        self.__indices__.clear()
-        self.__values__.clear()
+        self.__items__.clear()
 
     def index(self, item):
         """
@@ -294,8 +285,8 @@ class SparseArray(collections_abc.MutableSequence):
 
         try:
 
-            keys = list(self.__values__.keys())
-            values = list(self.__values__.values())
+            keys = list(self.__items__.keys())
+            values = list(self.__items__.values())
 
             physicalIndex = values.index(item)
             return keys[physicalIndex]
@@ -303,7 +294,17 @@ class SparseArray(collections_abc.MutableSequence):
         except ValueError as exception:
 
             log.debug(exception)
-            raise ValueError('index() item is not in array!' % item)
+            raise ValueError('index() %s is not in array!' % item)
+
+    def hasIndex(self, index):
+        """
+        Evaluates if this array contains the given index.
+
+        :type index: int
+        :rtype: bool
+        """
+
+        return index in self.indices()
 
     def indices(self):
         """
@@ -312,17 +313,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: list[int]
         """
 
-        # Iterate through indices
-        #
-        for (index, exists) in self.__indices__.items():
-
-            if exists:
-
-                yield index
-
-            else:
-
-                continue
+        return self.__items__.keys()
 
     def firstIndex(self):
         """
@@ -361,9 +352,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: list
         """
 
-        for index in self.indices():
-
-            yield self.__values__[index]
+        return self.__items__.values()
 
     def items(self):
         """
@@ -372,9 +361,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: list
         """
 
-        for index in self.indices():
-
-            yield index, self.__values__[index]
+        return self.__items__.items()
 
     def getItemByLogicalIndex(self, index):
         """
@@ -390,17 +377,15 @@ class SparseArray(collections_abc.MutableSequence):
 
             raise TypeError('getItemByLogicalIndex() expects an int (%s given)!' % type(index).__name__)
 
-        # Check if index exists
+        # Return indexed item
         #
-        hasIndex = self.__indices__.get(index, False)
+        if self.hasIndex(index):
 
-        if hasIndex:
-
-            return self.__values__[index]
+            return self.__items__[index]
 
         else:
 
-            raise IndexError('getItemByLogicalIndex() list index out of range!')
+            raise IndexError('getItemByLogicalIndex() array index out of range!')
 
     def tryGetItemByLogicalIndex(self, index, default=None):
         """
@@ -446,7 +431,7 @@ class SparseArray(collections_abc.MutableSequence):
 
         else:
 
-            raise IndexError('getItemByPhysicalIndex() index out of range!')
+            raise IndexError('getItemByPhysicalIndex() array index out of range!')
 
     def tryGetItemByPhysicalIndex(self, index, default=None):
         """
@@ -475,7 +460,7 @@ class SparseArray(collections_abc.MutableSequence):
         :rtype: bool
         """
 
-        return self.indices() == list(range(self.__len__()))
+        return list(self.indices()) == list(range(self.__len__()))
 
     def nextIndex(self):
         """
@@ -516,7 +501,7 @@ class SparseArray(collections_abc.MutableSequence):
         Converts this sparse array into a list.
         An optional fill value can be supplied to populate missing indices.
 
-        :key fill: Any
+        :keyword fill: Any
         :rtype: list[Any]
         """
 
@@ -525,7 +510,7 @@ class SparseArray(collections_abc.MutableSequence):
         if 'fill' in kwargs:
 
             fill = kwargs['fill']
-            return [self.__values__[index] if exists else fill for (index, exists) in self.__indices__.items()]
+            return [self.tryGetItemByPhysicalIndex(i, default=fill) for i in range(self.lastIndex())]
 
         else:
 
