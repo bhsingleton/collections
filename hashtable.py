@@ -13,6 +13,7 @@ class HashTable(collections_abc.MutableMapping):
     Whereas string keys point to hash codes that way the values are always unique.
     """
 
+    # region Dunderscores
     __slots__ = ('__keys__', '__values__')
 
     def __init__(self, *args, **kwargs):
@@ -148,7 +149,9 @@ class HashTable(collections_abc.MutableMapping):
         """
 
         return len(self.__values__)
+    # endregion
 
+    # region Methods
     def get(self, key, default=None):
         """
         Returns an indexed item with an optional default in case there's no item.
@@ -219,3 +222,4 @@ class HashTable(collections_abc.MutableMapping):
         """
 
         return {key: self.__getitem__(key) for key in self.keys()}.items()
+    # endregion

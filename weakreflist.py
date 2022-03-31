@@ -14,6 +14,7 @@ class WeakRefList(collections_abc.MutableSequence):
     Overload of MutableSequence used to store weak references to objects.
     """
 
+    # region Dunderscores
     __slots__ = ('__weakrefs__',)
 
     def __init__(self, *args, **kwargs):
@@ -99,7 +100,9 @@ class WeakRefList(collections_abc.MutableSequence):
         """
 
         return item in self.__weakrefs__
+    # endregion
 
+    # region Methods
     def append(self, value):
         """
         Appends a value to the end of the list.
@@ -170,3 +173,4 @@ class WeakRefList(collections_abc.MutableSequence):
         else:
 
             return weakref.ref(value, self.remove)
+    # endregion

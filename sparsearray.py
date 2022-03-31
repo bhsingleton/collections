@@ -15,6 +15,7 @@ class SparseArray(collections_abc.MutableSequence):
     Uses an internal sorted dictionary to track items.
     """
 
+    # region Dunderscores
     __slots__ = ('__items__',)
 
     def __init__(self, *args):
@@ -138,7 +139,9 @@ class SparseArray(collections_abc.MutableSequence):
         """
 
         return len(self.__items__)
+    # endregion
 
+    # region Methods
     def insert(self, index, item):
         """
         Inserts an item at the specified index.
@@ -524,3 +527,4 @@ class SparseArray(collections_abc.MutableSequence):
         """
 
         return dict(self.items())
+    # endregion

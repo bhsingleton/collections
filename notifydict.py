@@ -14,6 +14,7 @@ class NotifyDict(collections_abc.MutableMapping):
     We can add more as demand needs.
     """
 
+    # region Dunderscores
     __slots__ = ('__items__', '__callbacks__')
 
     def __init__(self, *args, **kwargs):
@@ -103,7 +104,9 @@ class NotifyDict(collections_abc.MutableMapping):
         self.itemRemoved(item)
 
         return item
+    # endregion
 
+    # region Methods
     def update(self, items):
         """
         Copies the supplied items into this dictionary.
@@ -193,7 +196,9 @@ class NotifyDict(collections_abc.MutableMapping):
         if func in callbacks:
 
             callbacks.remove(func)
+    # endregion
 
+    # region Notifies
     def itemAdded(self, index, item):
         """
         Notifies any functions if an item has been added.
@@ -218,3 +223,4 @@ class NotifyDict(collections_abc.MutableMapping):
         for func in self.__callbacks__['itemRemoved']:
 
             func(item)
+    # endregion

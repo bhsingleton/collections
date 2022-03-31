@@ -12,6 +12,7 @@ class NotifyList(collections_abc.MutableSequence):
     Overload of MutableSequence used to provide callback mechanisms for any list changes.
     """
 
+    # region Dunderscores
     __slots__ = ('__items__', '__callbacks__')
 
     def __init__(self, *args, **kwargs):
@@ -88,7 +89,9 @@ class NotifyList(collections_abc.MutableSequence):
         """
 
         return len(self.__items__)
+    # endregion
 
+    # region Methods
     def move(self, index, value):
         """
         Moves an index item to a different index.
@@ -232,7 +235,9 @@ class NotifyList(collections_abc.MutableSequence):
         if func in callbacks:
 
             callbacks.remove(func)
+    # endregion
 
+    # region Notifies
     def itemAdded(self, index, item):
         """
         Notifies any functions if an item has been added.
@@ -257,3 +262,4 @@ class NotifyList(collections_abc.MutableSequence):
         for func in self.__callbacks__['itemRemoved']:
 
             func(item)
+    # endregion
