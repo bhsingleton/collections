@@ -1,3 +1,4 @@
+from six import integer_types
 from six.moves import collections_abc
 from .weakreflist import WeakRefList
 
@@ -27,9 +28,17 @@ class NotifyList(collections_abc.MutableSequence):
         #
         super(NotifyList, self).__init__()
 
+        # Get base class of internal list
+        #
+        cls = kwargs.get('cls', list)
+
+        if not callable(cls):
+
+            raise TypeError('__init__() expects a callable class!')
+
         # Declare private variables
         #
-        self.__items__ = kwargs.get('cls', list).__call__()
+        self.__items__ = cls()
         self.__callbacks__ = {'itemAdded': WeakRefList(), 'itemRemoved': WeakRefList()}
 
         # Check for any arguments
@@ -175,14 +184,28 @@ class NotifyList(collections_abc.MutableSequence):
         """
         Removes the indexed item from this list and returns it.
 
-        :type index: int
-        :rtype: FbxObject
+        :type index: Union[int, slice]
+        :rtype: Union[Any, List[Any]]
         """
 
-        item = self.__items__.pop(index)
-        self.itemRemoved(item)
+        if isinstance(index, integer_types):
 
-        return item
+            item = self.__items__.pop(index)
+            self.itemRemoved(item)
+
+            return item
+
+        elif isinstance(index, slice):
+
+            start = 0 if index.start is None else index.start
+            stop = len(self) if index.stop is None else index.stop
+            step = 1 if index.step is None else index.step
+
+            return [self.pop(i) for i in range(start, stop, step)]
+
+        else:
+
+            raise TypeError('pop() expects either an int or slice (%s given)!' % type(index).__name__)
 
     def clear(self):
         """
