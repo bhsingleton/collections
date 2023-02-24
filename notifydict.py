@@ -21,7 +21,7 @@ class NotifyDict(collections_abc.MutableMapping):
         """
         Private method called after a new instance has been created.
 
-        :key cls: type
+        :key cls: Callable
         :rtype: None
         """
 
@@ -107,26 +107,6 @@ class NotifyDict(collections_abc.MutableMapping):
     # endregion
 
     # region Methods
-    def update(self, items):
-        """
-        Copies the supplied items into this dictionary.
-
-        :rtype: None
-        """
-
-        for (key, value) in items.items():
-
-            self.__setitem__(key, value)
-
-    def clear(self):
-        """
-        Removes all items from this dictionary.
-
-        :rtype: None
-        """
-
-        self.__items__.clear()
-
     def keys(self):
         """
         Returns a keys view for this dictionary.
@@ -153,6 +133,30 @@ class NotifyDict(collections_abc.MutableMapping):
         """
 
         return self.__items__.items()
+
+    def update(self, items):
+        """
+        Copies the supplied items into this dictionary.
+
+        :rtype: None
+        """
+
+        for (key, value) in items.items():
+
+            self.__setitem__(key, value)
+
+    def clear(self):
+        """
+        Removes all items from this dictionary.
+
+        :rtype: None
+        """
+
+        keys = list(self.keys())
+
+        for key in reversed(keys):
+
+            self.pop(key)
 
     def callbackNames(self):
         """

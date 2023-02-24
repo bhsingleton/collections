@@ -214,7 +214,7 @@ class NotifyList(collections_abc.MutableSequence):
         :rtype: None
         """
 
-        self.__items__.clear()
+        self.pop(slice(0, self.__len__(), 1))
 
     def callbackNames(self):
         """
